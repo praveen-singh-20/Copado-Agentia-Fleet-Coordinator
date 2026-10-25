@@ -1,0 +1,28 @@
+{
+  "name": "agentia-fleet-coordinator",
+  "version": "0.2.0",
+  "description": "Multi-agent Fleet Coordinator + Simulation Engine for Salesforce delivery on Copado Agentia Headless",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "fleet": "./bin/fleet.js"
+  },
+  "scripts": {
+    "fleet": "node src/cli.ts",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
+    "sample:repos": "node scripts/make-sample-repo.ts sample/acme-org && node scripts/make-sample-repo.ts sample/acme-org-revised --variant revised",
+    "sample:git": "node src/cli.ts run --git sample/acme-org --base main --stories US-0000101,US-0000102,US-0000103,US-0000104,US-0000105",
+    "sample:git-revised": "node src/cli.ts run --git sample/acme-org-revised --base main --stories US-0000101,US-0000102,US-0000103,US-0000104,US-0000105",
+    "sample": "node src/cli.ts run fixtures/stories.json --snapshot fixtures/snapshot.json",
+    "sample:revised": "node src/cli.ts run fixtures/stories-revised.json --snapshot fixtures/snapshot.json",
+    "ui": "node src/cli.ts ui"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.8.0"
+  }
+}

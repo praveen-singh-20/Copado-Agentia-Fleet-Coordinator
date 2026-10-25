@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "agentia": {
+      "type": "stdio",
+      "command": "agentia",
+      "args": ["mcp", "start"],
+      "env": { "AGENTIA_PROJECT_ROOT": "${PWD}" }
+    },
+    "fleet": {
+      "type": "stdio",
+      "command": "fleet",
+      "args": ["mcp", "--work-dir", "${PWD}/.fleet"]
+    }
+  }
+}

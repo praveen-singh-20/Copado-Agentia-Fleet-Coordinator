@@ -1,0 +1,93 @@
+{
+  "name": "Customer Tier rollout (as first submitted)",
+  "tasks": [
+    {
+      "id": "US-101",
+      "title": "Add Customer Tier picklist to Account",
+      "copadoStory": "US-0000101",
+      "acceptanceCriteria": ["Account has a Customer Tier picklist: Bronze, Silver, Gold, Platinum"],
+      "changes": [
+        {
+          "op": "create",
+          "component": {
+            "id": "CustomField:Account.Customer_Tier__c",
+            "type": "CustomField",
+            "attributes": { "label": "Customer Tier", "fieldType": "Picklist", "values": ["Bronze", "Silver", "Gold", "Platinum"] }
+          },
+          "references": [{ "to": "CustomObject:Account", "kind": "references" }]
+        }
+      ]
+    },
+    {
+      "id": "US-102",
+      "title": "Route Gold and Platinum accounts to the Key Accounts queue",
+      "copadoStory": "US-0000102",
+      "changes": [
+        {
+          "op": "create",
+          "component": {
+            "id": "Flow:Account_Tier_Routing",
+            "type": "Flow",
+            "attributes": { "processType": "AutoLaunchedFlow", "trigger": "Account after save", "status": "Active" },
+            "tags": ["production-automation"]
+          },
+          "references": [{ "to": "CustomField:Account.Customer_Tier__c", "kind": "reads" }]
+        }
+      ]
+    },
+    {
+      "id": "US-103",
+      "title": "Field-level security for Customer Tier",
+      "copadoStory": "US-0000103",
+      "description": "Sales can read the tier. Integration user gets read access.",
+      "changes": [
+        { "op": "set-node", "id": "Profile:Sales", "node": "fieldPermissions:Account.Customer_Tier__c", "value": { "readable": true, "editable": false } },
+        { "op": "set-node", "id": "PermissionSet:Integration_User", "node": "fieldPermissions:Account.Customer_Tier__c", "value": { "readable": true, "editable": false } }
+      ]
+    },
+    {
+      "id": "US-104",
+      "title": "ERP sync writes Customer Tier",
+      "copadoStory": "US-0000104",
+      "changes": [
+        {
+          "op": "update",
+          "id": "IntegrationMapping:ERP_Account_Sync",
+          "attributes": {
+            "fieldMappings": [
+              { "field": "CustomField:Account.Tier_Legacy__c", "direction": "inbound" },
+              { "field": "CustomField:Account.Customer_Tier__c", "direction": "inbound" }
+            ]
+          },
+          "references": [{ "to": "CustomField:Account.Customer_Tier__c", "kind": "writes", "source": "configuration" }]
+        }
+      ],
+      "assumptions": [
+        {
+          "type": "node-flag",
+          "id": "PermissionSet:Integration_User",
+          "node": "fieldPermissions:Account.Customer_Tier__c",
+          "flag": "editable",
+          "equals": true,
+          "reason": "ERP integration user can write Customer Tier"
+        }
+      ]
+    },
+    {
+      "id": "US-105",
+      "title": "Report by Customer Tier and retire the legacy tier field",
+      "copadoStory": "US-0000105",
+      "changes": [
+        {
+          "op": "update",
+          "id": "Report:Accounts_By_Tier",
+          "attributes": { "groupBy": "Customer_Tier__c" },
+          "references": [{ "to": "CustomField:Account.Customer_Tier__c", "kind": "groups-by" }],
+          "removeReferences": ["CustomField:Account.Tier_Legacy__c"]
+        },
+        { "op": "remove-node", "id": "Profile:Sales", "node": "fieldPermissions:Account.Tier_Legacy__c" },
+        { "op": "delete", "id": "CustomField:Account.Tier_Legacy__c" }
+      ]
+    }
+  ]
+}

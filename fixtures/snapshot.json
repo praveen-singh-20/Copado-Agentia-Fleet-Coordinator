@@ -1,0 +1,102 @@
+{
+  "name": "acme-uat-curated",
+  "capturedAt": "2026-10-11T00:00:00Z",
+  "origin": "Curated fixture (not retrieved from an org). Replace with a retrieved snapshot when org access is available.",
+  "components": [
+    { "id": "CustomObject:Account", "type": "CustomObject", "attributes": { "label": "Account" } },
+    {
+      "id": "CustomField:Account.Tier_Legacy__c",
+      "type": "CustomField",
+      "attributes": { "label": "Tier (Legacy)", "fieldType": "Text", "length": 20 }
+    },
+    {
+      "id": "CustomField:Account.Tax_Id__c",
+      "type": "CustomField",
+      "attributes": { "label": "Tax ID", "fieldType": "Text", "encrypted": true },
+      "tags": ["pii"]
+    },
+    {
+      "id": "Flow:Legacy_Tier_Update",
+      "type": "Flow",
+      "attributes": { "processType": "AutoLaunchedFlow", "trigger": "Account before save", "status": "Active" },
+      "tags": ["production-automation"]
+    },
+    {
+      "id": "ApexClass:AccountTierService",
+      "type": "ApexClass",
+      "attributes": { "apiVersion": "61.0", "description": "Computes discounts from Account.Tier_Legacy__c" },
+      "tags": ["production-automation"]
+    },
+    {
+      "id": "ApexTrigger:AccountTrigger",
+      "type": "ApexTrigger",
+      "attributes": { "object": "Account", "events": ["before insert", "before update"] },
+      "tags": ["production-automation"]
+    },
+    {
+      "id": "ApexClass:TierBatchJob",
+      "type": "ApexClass",
+      "attributes": { "apiVersion": "58.0", "description": "Nightly batch; builds SOQL dynamically" }
+    },
+    {
+      "id": "Profile:Sales",
+      "type": "Profile",
+      "attributes": { "userLicense": "Salesforce" },
+      "nodes": {
+        "objectPermissions:Account": { "allowRead": true, "allowEdit": true },
+        "fieldPermissions:Account.Tier_Legacy__c": { "readable": true, "editable": true }
+      }
+    },
+    {
+      "id": "Profile:Customer_Community",
+      "type": "Profile",
+      "attributes": { "userLicense": "Customer Community" },
+      "tags": ["external"],
+      "nodes": { "objectPermissions:Account": { "allowRead": true, "allowEdit": false } }
+    },
+    {
+      "id": "PermissionSet:Integration_User",
+      "type": "PermissionSet",
+      "attributes": { "label": "ERP Integration User" },
+      "tags": ["integration"],
+      "nodes": {
+        "objectPermissions:Account": { "allowRead": true, "allowEdit": true },
+        "fieldPermissions:Account.Tier_Legacy__c": { "readable": true, "editable": true }
+      }
+    },
+    {
+      "id": "IntegrationMapping:ERP_Account_Sync",
+      "type": "IntegrationMapping",
+      "attributes": {
+        "system": "SAP ERP",
+        "runAs": "PermissionSet:Integration_User",
+        "fieldMappings": [{ "field": "CustomField:Account.Tier_Legacy__c", "direction": "inbound" }]
+      },
+      "tags": ["integration", "external-consumer"]
+    },
+    {
+      "id": "Report:Accounts_By_Tier",
+      "type": "Report",
+      "attributes": { "format": "Summary", "audience": ["Profile:Sales"] }
+    },
+    { "id": "Dashboard:Sales_Exec", "type": "Dashboard", "attributes": { "title": "Sales Executive" } }
+  ],
+  "dependencies": [
+    { "from": "CustomField:Account.Tier_Legacy__c", "to": "CustomObject:Account", "kind": "references", "source": "metadata" },
+    { "from": "CustomField:Account.Tax_Id__c", "to": "CustomObject:Account", "kind": "references", "source": "metadata" },
+    { "from": "Flow:Legacy_Tier_Update", "to": "CustomField:Account.Tier_Legacy__c", "kind": "writes", "source": "metadata" },
+    { "from": "ApexClass:AccountTierService", "to": "CustomField:Account.Tier_Legacy__c", "kind": "reads", "source": "source-code" },
+    { "from": "ApexTrigger:AccountTrigger", "to": "ApexClass:AccountTierService", "kind": "references", "source": "source-code" },
+    {
+      "from": "ApexClass:TierBatchJob",
+      "to": "CustomField:Account.Tier_Legacy__c",
+      "kind": "reads",
+      "source": "inference",
+      "note": "Field name appears in a string literal used to build dynamic SOQL"
+    },
+    { "from": "IntegrationMapping:ERP_Account_Sync", "to": "CustomField:Account.Tier_Legacy__c", "kind": "writes", "source": "configuration" },
+    { "from": "IntegrationMapping:ERP_Account_Sync", "to": "PermissionSet:Integration_User", "kind": "runs-as", "source": "configuration" },
+    { "from": "Report:Accounts_By_Tier", "to": "CustomField:Account.Tier_Legacy__c", "kind": "groups-by", "source": "metadata" },
+    { "from": "Dashboard:Sales_Exec", "to": "Report:Accounts_By_Tier", "kind": "references", "source": "metadata" }
+  ]
+}

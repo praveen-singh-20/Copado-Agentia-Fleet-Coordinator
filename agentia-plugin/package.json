@@ -1,0 +1,32 @@
+{
+  "name": "agentia-plugin-fleet",
+  "version": "0.1.0",
+  "description": "Agentia CLI plugin: simulate the active Copado story together with other in-flight stories before you submit (agentia fleet check).",
+  "type": "module",
+  "license": "MIT",
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc -p ."
+  },
+  "dependencies": {
+    "@copado/agentia-plugin-sdk": "*",
+    "@oclif/core": "^4"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "typescript": "^5.8.0"
+  },
+  "oclif": {
+    "commands": "./dist/commands",
+    "topicSeparator": " ",
+    "topics": {
+      "fleet": { "description": "Multi-story simulation and governed delivery (Fleet Coordinator)" }
+    }
+  },
+  "agentia": {
+    "hostApi": 1,
+    "requires": ["work.getWorkItem", "format.table"],
+    "permissions": { "network": [], "files": "read", "commands": ["fleet"], "env": [] },
+    "hooks": []
+  }
+}

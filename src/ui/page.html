@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fleet Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #e6ebf0; --surface: #f8fafb; --strip: #fdfdf8; --ink: #1b2a38; --muted: #5a6b7b; --line: #c9d3dc;
+  --high: #c2362f; --medium: #c98a0e; --low: #2f6db5; --ok: #2e7d5b; --info: #7d8b98;
+  --cond: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #10171e; --surface: #18222c; --strip: #1e2a35; --ink: #dce5ec; --muted: #93a3b1; --line: #2c3a47; --high: #ef6b62; --medium: #e8b03c; --low: #6fa3e4; --ok: #5cbf8f; --info: #8796a3; }
+}
+:root[data-theme="dark"] { --bg: #10171e; --surface: #18222c; --strip: #1e2a35; --ink: #dce5ec; --muted: #93a3b1; --line: #2c3a47; --high: #ef6b62; --medium: #e8b03c; --low: #6fa3e4; --ok: #5cbf8f; --info: #8796a3; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--sans); }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--low); outline-offset: 2px; }
+.app { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+aside { border-right: 1px solid var(--line); padding: 20px 16px; background: var(--surface); }
+aside h1 { font: 700 22px/1.1 var(--cond); margin: 0 0 4px; letter-spacing: .01em; }
+aside p.sub { margin: 0 0 18px; color: var(--muted); font-size: 13px; }
+.runlist { list-style: none; padding: 0; margin: 0 0 24px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.app > * { min-width: 0; }
+.runlist button { display: block; width: 100%; max-width: 100%; overflow: hidden; text-align: left; background: none; border: 1px solid transparent; border-radius: 6px; padding: 8px 10px; cursor: pointer; }
+.runlist button[aria-current="true"] { border-color: var(--line); background: var(--strip); }
+.runlist .d { font: 600 13px var(--cond); }
+.runlist .b { display: block; color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+form.new { display: grid; gap: 8px; font-size: 13px; }
+form.new label { display: grid; gap: 2px; color: var(--muted); }
+form.new input[type=text] { border: 1px solid var(--line); background: var(--strip); border-radius: 4px; padding: 6px 8px; }
+.btn { border: 1px solid var(--ink); background: var(--ink); color: var(--surface); border-radius: 4px; padding: 7px 14px; cursor: pointer; font-weight: 600; }
+.btn.ghost { background: transparent; color: var(--ink); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+main { padding: 24px clamp(16px, 3vw, 40px) 64px; max-width: 1280px; }
+.empty { color: var(--muted); padding: 60px 0; max-width: 46ch; }
+header.verdict { display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: end; padding-bottom: 20px; border-bottom: 2px solid var(--ink); }
+.decision { font: 700 clamp(48px, 8vw, 92px)/.9 var(--cond); margin: 0; letter-spacing: -.01em; }
+.decision.APPLY { color: var(--ok); } .decision.REVISE { color: var(--medium); } .decision.REJECT { color: var(--high); }
+.verdict .why { margin: 10px 0 0; max-width: 70ch; color: var(--muted); }
+.verdict .meta { font-size: 13px; color: var(--muted); margin-top: 6px; }
+.approve { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: grid; gap: 8px; min-width: 260px; font-size: 13px; }
+.approve h3 { margin: 0; font: 600 16px var(--cond); }
+.approve input[type=text] { border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; background: var(--strip); }
+.approve .row { display: flex; gap: 8px; align-items: center; }
+.approved { color: var(--ok); font-weight: 600; }
+section { margin-top: 36px; }
+section > h2 { font: 600 20px/1.2 var(--cond); margin: 0 0 12px; }
+section > p.lede { margin: -6px 0 14px; color: var(--muted); max-width: 72ch; font-size: 14px; }
+/* Strip board: the memorable element */
+.board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(240px, 1fr); gap: 0; overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.lane { padding: 12px; border-right: 1px dashed var(--line); min-height: 160px; }
+.lane:last-child { border-right: 0; }
+.lane h3 { font: 600 14px var(--cond); margin: 0 0 10px; color: var(--muted); }
+.strip { background: var(--strip); border: 1px solid var(--line); border-left: 6px solid var(--ok); border-radius: 3px; padding: 8px 10px; margin-bottom: 8px; box-shadow: 0 1px 0 var(--line); }
+.strip.sev-medium { border-left-color: var(--medium); } .strip.sev-high, .strip.sev-blocker { border-left-color: var(--high); } .strip.sev-low { border-left-color: var(--low); }
+.strip .id { font: 700 17px var(--cond); }
+.strip .t { font-size: 13px; }
+.strip .n { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.links { margin: 10px 0 0; padding: 0; list-style: none; font-size: 13px; display: grid; gap: 4px; }
+.links .ok { color: var(--ok); } .links .warn { color: var(--medium); }
+/* Findings */
+.findings { display: grid; gap: 10px; }
+.finding { display: grid; grid-template-columns: 82px 1fr; gap: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px; }
+.sev { font: 700 13px var(--cond); text-transform: lowercase; }
+.sev.high, .sev.blocker { color: var(--high); } .sev.medium { color: var(--medium); } .sev.low { color: var(--low); } .sev.info { color: var(--info); }
+.finding h4 { margin: 0 0 4px; font-size: 15px; }
+.finding p { margin: 0 0 6px; font-size: 14px; color: var(--muted); }
+.finding .fix { color: var(--ink); }
+.finding .fix b { color: var(--ok); }
+.filter { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.filter button { border: 1px solid var(--line); background: var(--surface); border-radius: 99px; padding: 3px 12px; cursor: pointer; font-size: 13px; }
+.filter button[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+/* Tables */
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 13px var(--cond); color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+.chg-added { color: var(--ok); } .chg-removed { color: var(--high); } .chg-modified { color: var(--medium); }
+code { font-size: 12px; overflow-wrap: anywhere; }
+/* Risk */
+.dims { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.dim { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 10px; }
+.dim .lv { font: 700 22px var(--cond); }
+.lv.high { color: var(--high); } .lv.medium { color: var(--medium); } .lv.low { color: var(--low); } .lv.none { color: var(--ok); }
+.dim .r { font-size: 12px; color: var(--muted); }
+/* Graph */
+.graph { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; overflow-x: auto; }
+.graph svg text { fill: var(--ink); font: 12px var(--sans); }
+.graph .edge { stroke: var(--line); fill: none; stroke-width: 1.5; }
+.graph .edge.inference { stroke-dasharray: 5 4; }
+.graph .node rect { fill: var(--strip); stroke: var(--line); }
+.graph .node.changed rect { stroke: var(--ink); stroke-width: 2; }
+.graph .node.prod rect { stroke: var(--high); }
+.legend { font-size: 12px; color: var(--muted); margin-top: 6px; }
+/* Plan + agents */
+pre.cmds { background: var(--strip); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; overflow-x: auto; font-size: 12px; margin: 6px 0 14px; }
+.agents { display: grid; gap: 4px; font-size: 13px; }
+.agent { display: grid; grid-template-columns: 130px 1fr 1fr 70px; gap: 8px; align-items: center; }
+.bar { height: 8px; background: var(--low); border-radius: 4px; min-width: 2px; }
+.bar.fail { background: var(--high); }
+.toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--surface); padding: 10px 16px; border-radius: 6px; font-size: 14px; display: none; max-width: calc(100vw - 32px); }
+@media (max-width: 860px) {
+  .app { grid-template-columns: 1fr; }
+  aside { border-right: 0; border-bottom: 1px solid var(--line); }
+  header.verdict { grid-template-columns: 1fr; }
+  .agent { grid-template-columns: 1fr 1fr; }
+  .finding { grid-template-columns: 1fr; gap: 2px; }
+}
+@media (prefers-reduced-motion: no-preference) { .decision { animation: land .5s ease-out; } @keyframes land { from { opacity: 0; transform: translateY(8px); } } }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <h1>Fleet Control</h1>
+    <p class="sub">Simulate stories together before Copado promotes them.</p>
+    <ul class="runlist" id="runs" aria-label="Runs"></ul>
+    <form class="new" id="newRun">
+      <strong>New run from Git</strong>
+      <label>Repository <input type="text" name="repo" required placeholder="/path/to/salesforce-repo"></label>
+      <label>Base ref <input type="text" name="base" value="main"></label>
+      <label>Stories (comma separated) <input type="text" name="stories" placeholder="US-0000101, US-0000102"></label>
+      <label><span><input type="checkbox" name="fromCopado"> add in-flight stories from Copado</span></label>
+      <label><span><input type="checkbox" name="copadoImpact"> run Copado dependency analyzer</span></label>
+      <label><span><input type="checkbox" name="ai"> ask Copado AI agents</span></label>
+      <button class="btn" type="submit">Simulate</button>
+    </form>
+  </aside>
+  <main id="main"><p class="empty">Pick a run on the left, or simulate a set of story branches. Nothing is promoted until a person approves the plan.</p></main>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const api = async (url, body) => {
+  const r = await fetch(url, body ? { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Fleet': '1' }, body: JSON.stringify(body) } : {});
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+};
+const toast = (msg) => { const t = $('#toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast.h); toast.h = setTimeout(() => (t.style.display = 'none'), 5000); };
+const SEV = ['blocker', 'high', 'medium', 'low', 'info'];
+let current = null, sevFilter = 'all';
+
+async function loadRuns(select) {
+  const runs = await api('/api/runs');
+  $('#runs').innerHTML = runs.length ? runs.slice().reverse().map((r) => `<li><button data-id="${esc(r.runId)}" aria-current="${r.runId === select}"><span class="d">${esc(r.decision)} · ${r.approved ? 'approved' : esc(r.status)}</span><span class="b">${esc(r.batch)}</span><span class="b">${esc(r.runId)}</span></button></li>`).join('') : '<li class="b">No runs yet</li>';
+  if (select) show(select);
+}
+$('#runs').addEventListener('click', (e) => { const b = e.target.closest('button[data-id]'); if (b) { [...document.querySelectorAll('#runs button')].forEach((x) => x.setAttribute('aria-current', x === b)); show(b.dataset.id); } });
+
+$('#newRun').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = new FormData(e.target);
+  const btn = $('button[type=submit]', e.target); btn.disabled = true; btn.textContent = 'Simulating…';
+  try {
+    const r = await api('/api/runs', { git: { repo: f.get('repo'), base: f.get('base') || 'main', stories: String(f.get('stories') || '').split(',').map((s) => s.trim()).filter(Boolean), fromCopado: !!f.get('fromCopado'), copadoImpact: !!f.get('copadoImpact') }, ai: !!f.get('ai') });
+    toast(`Simulated ${r.runId}: ${r.decision ?? r.status}`);
+    loadRuns(r.runId);
+  } catch (err) { toast(err.message); } finally { btn.disabled = false; btn.textContent = 'Simulate'; }
+});
+
+function worstFor(run, story) {
+  const fs = run.simulation.findings.filter((f) => f.stories.includes(story) && f.severity !== 'info');
+  return fs.sort((a, b) => SEV.indexOf(a.severity) - SEV.indexOf(b.severity))[0]?.severity ?? 'ok';
+}
+
+async function show(id) {
+  const { run, approval } = await api(`/api/runs/${encodeURIComponent(id)}`);
+  current = run;
+  const m = $('#main');
+  if (run.intakeIssues.length) { m.innerHTML = `<header class="verdict"><div><p class="decision REJECT">Needs input</p><p class="why">${run.intakeIssues.map((i) => `${esc(i.task)}: ${esc(i.issues.join('; '))}`).join('<br>')}</p></div></header>`; return; }
+  const r = run.risk, s = run.schedule, sim = run.simulation;
+  m.innerHTML = `
+  <header class="verdict">
+    <div>
+      <p class="decision ${r.decision}">${r.decision}</p>
+      <p class="why">${esc(r.decisionReason)}</p>
+      <p class="meta">${esc(run.batch)} — overall risk ${esc(r.overall)} — based on local simulation${run.externalImpact?.length ? ', Copado dependency analyzer' : ''}${run.aiOpinions?.length || run.enrichment ? ', AI opinions' : ''}. Nothing validated or deployed yet.</p>
+    </div>
+    <div class="approve" id="approveBox">${approvalHtml(run, approval)}</div>
+  </header>
+
+  <section><h2>Promotion order</h2><p class="lede">Stories in the same column can be worked and validated in parallel. A column waits for the ones to its left.</p>
+    <div class="board">${s.waves.map((w) => `<div class="lane"><h3>Wave ${w.index}</h3>${w.tasks.map((t) => { const task = run.tasks.find((x) => x.id === t); const sev = worstFor(run, t); const waits = s.edges.filter((e) => e.after === t).map((e) => e.before); return `<div class="strip sev-${sev}"><div class="id">${esc(t)}</div><div class="t">${esc(task?.title)}</div><div class="n">${(task?.changes || []).length} change(s)${waits.length ? ` · after ${esc(waits.join(', '))}` : ''}</div></div>`; }).join('')}</div>`).join('')}</div>
+    <ul class="links">${s.mergeable.map((x) => `<li class="ok">${esc(x.tasks.join(' + '))} both edit ${esc(x.component)}, on different elements — safe in parallel</li>`).join('')}${s.collisions.map((x) => `<li class="warn">${esc(x.tasks.join(' + '))} change the same element ${esc(x.key)} — run one after the other</li>`).join('')}</ul>
+  </section>
+
+  <section><h2>Findings</h2>
+    <div class="filter" role="group" aria-label="Filter by severity">${['all', ...SEV].map((v) => `<button data-sev="${v}" aria-pressed="${v === sevFilter}">${v} (${v === 'all' ? sim.findings.length : sim.findings.filter((f) => f.severity === v).length})</button>`).join('')}</div>
+    <div class="findings" id="findings"></div>
+  </section>
+
+  <section><h2>Before and simulated after</h2><p class="lede">${sim.baseline.components} components → ${sim.after.components} after all stories are applied in order.</p>
+    <div class="tablewrap"><table><thead><tr><th>Component</th><th>Change</th><th>Stories</th><th>What changes</th></tr></thead><tbody>${sim.diff.map((d) => `<tr><td><code>${esc(d.id)}</code></td><td class="chg-${d.change}">${d.change}</td><td>${esc(d.stories.join(', '))}</td><td>${[...(d.attributes || []).map((a) => `${esc(a.key)}: ${esc(short(a.before))} → ${esc(short(a.after))}`), ...(d.nodes || []).map((n) => `${esc(n.node)}: ${esc(short(n.before))} → ${esc(short(n.after))}`)].join('<br>')}</td></tr>`).join('')}</tbody></table></div>
+  </section>
+
+  <section><h2>Blast radius</h2><p class="lede">What depends on the changed components. Dashed lines are inferred, not proven.</p>
+    <div class="graph">${graphSvg(sim.blastRadius)}</div>
+    <p class="legend">Bold outline: changed by a story. Red outline: production automation.</p>
+  </section>
+
+  <section><h2>Risk</h2><div class="dims">${r.dimensions.map((d) => `<div class="dim"><div>${esc(d.name)}</div><div class="lv ${d.level}">${d.level}</div><div class="r">${esc(d.reasons[0] || '')}${d.reasons.length > 1 ? ` (+${d.reasons.length - 1} more)` : ''}</div></div>`).join('')}</div>
+    ${r.tests.length ? `<h3>Tests to run</h3><ul>${r.tests.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
+  </section>
+
+  <section><h2>Copado commands, in order</h2><p class="lede">What execution sends through Agentia after approval. Back-promotion syncs are added where a story builds on an earlier one.</p>
+    ${(run.promotionPlan || []).map((p) => `<div><strong>Wave ${p.wave} · ${esc(p.story)}</strong>${p.notes.length ? `<ul class="links">${p.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}<pre class="cmds">${p.commands.map(esc).join('\n')}</pre></div>`).join('')}
+  </section>
+
+  <section><h2>Agents that worked on this run</h2><div class="agents">${agentRows(run.agentCalls)}</div></section>
+  <section><h2>Audit trail</h2><div class="tablewrap"><table><tbody id="audit"></tbody></table></div></section>`;
+  renderFindings();
+  m.querySelector('.filter').addEventListener('click', (e) => { const b = e.target.closest('button[data-sev]'); if (!b) return; sevFilter = b.dataset.sev; [...m.querySelectorAll('.filter button')].forEach((x) => x.setAttribute('aria-pressed', x === b)); renderFindings(); });
+  wireApproval(run);
+  const audit = await api(`/api/audit?run=${encodeURIComponent(id)}`);
+  $('#audit').innerHTML = audit.slice(-40).map((e) => `<tr><td>${esc(e.at.slice(11, 19))}</td><td>${esc(e.actor)}</td><td>${esc(e.event)}</td><td><code>${esc(JSON.stringify(e.data || {}).slice(0, 120))}</code></td></tr>`).join('');
+}
+
+function renderFindings() {
+  const fs = current.simulation.findings.filter((f) => sevFilter === 'all' || f.severity === sevFilter).sort((a, b) => SEV.indexOf(a.severity) - SEV.indexOf(b.severity));
+  $('#findings').innerHTML = fs.map((f) => `<article class="finding"><div class="sev ${f.severity}">${f.severity}<br><span style="color:var(--muted)">${esc(f.id)}</span></div><div><h4>${esc(f.title)}</h4><p>${esc(f.explanation)}</p>${f.mitigation ? `<p class="fix"><b>Fix</b> ${esc(f.mitigation)}</p>` : ''}<p>${f.stories.length ? `Stories ${esc(f.stories.join(', '))} — ` : ''}evidence: ${esc(f.evidence.join(', '))}</p></div></article>`).join('') || '<p class="empty">No findings at this level.</p>';
+}
+
+function approvalHtml(run, approval) {
+  if (approval) return `<h3>Approved</h3><p class="approved">${esc(approval.by)} · ${esc(approval.at.slice(0, 16).replace('T', ' '))}</p><p>${approval.allowDeploy ? 'Deployment to the next environment allowed.' : 'Validation only.'}</p><button class="btn ghost" id="preview">Preview Copado commands</button><pre class="cmds" id="previewOut" hidden></pre>`;
+  if (run.risk.decision === 'REJECT') return `<h3>Cannot be approved</h3><p>Change the stories and simulate again.</p>`;
+  return `<h3>Approve this plan</h3>
+    <label>Your name <input type="text" id="approver" autocomplete="name"></label>
+    ${run.risk.decision === 'REVISE' ? `<label class="row"><input type="checkbox" id="acceptRisk"> I accept the open high findings</label>` : ''}
+    <label class="row"><input type="checkbox" id="allowDeploy"> Allow deploy to the next environment</label>
+    <button class="btn" id="approveBtn">Approve plan</button>
+    <span style="color:var(--muted)">Editing any story afterwards cancels this approval.</span>`;
+}
+
+function wireApproval(run) {
+  $('#approveBtn')?.addEventListener('click', async () => {
+    try {
+      await api(`/api/runs/${encodeURIComponent(run.runId)}/approve`, { by: $('#approver').value, acceptRisk: !!$('#acceptRisk')?.checked, allowDeploy: $('#allowDeploy').checked });
+      toast('Plan approved'); loadRuns(run.runId);
+    } catch (e) { toast(e.message); }
+  });
+  $('#preview')?.addEventListener('click', async () => {
+    try {
+      const ex = await api(`/api/runs/${encodeURIComponent(run.runId)}/preview`, {});
+      const out = $('#previewOut'); out.hidden = false;
+      out.textContent = ex.results.map((r) => `${r.status} ${r.task}\n` + (r.steps?.map((s) => '  ' + s.command) ?? r.detail?.wouldRun?.map((c) => '  ' + c) ?? []).join('\n')).join('\n');
+    } catch (e) { toast(e.message); }
+  });
+}
+
+function agentRows(calls) {
+  const max = Math.max(1, ...calls.map((c) => c.ms || 0));
+  return calls.map((c) => `<div class="agent"><span>${esc(c.stage)}</span><span>${esc(c.agent || 'none')}${c.via ? ` (${esc(c.via)})` : ''}</span><span><span class="bar ${c.ok ? '' : 'fail'}" style="display:block;width:${Math.max(2, ((c.ms || 0) / max) * 100)}%"></span></span><span>${c.ms ?? 0} ms</span></div>`).join('');
+}
+
+function graphSvg(br) {
+  const cols = [br.changed.map((id) => ({ id, changed: true, tags: [] })), br.direct.map((e) => ({ id: e.component, tags: e.tags, via: e.via })), br.indirect.map((e) => ({ id: e.component, tags: e.tags, via: e.via }))];
+  const W = 290, H = 34, gapY = 12, padX = 16;
+  const pos = new Map();
+  cols.forEach((col, ci) => col.forEach((n, ri) => pos.set(n.id, { x: padX + ci * (W + 60), y: 16 + ri * (H + gapY), n, ci })));
+  const height = 32 + Math.max(...cols.map((c) => c.length), 1) * (H + gapY);
+  const width = padX * 2 + 3 * W + 120;
+  const edges = [];
+  for (const col of cols.slice(1)) for (const n of col) { const last = n.via[n.via.length - 1]; const a = pos.get(last.to), b = pos.get(last.from); if (a && b) edges.push(`<path class="edge ${last.source === 'inference' ? 'inference' : ''}" d="M${a.x + W},${a.y + H / 2} C${a.x + W + 30},${a.y + H / 2} ${b.x - 30},${b.y + H / 2} ${b.x},${b.y + H / 2}"/>`); }
+  const nodes = [...pos.values()].map(({ x, y, n }) => `<g class="node ${n.changed ? 'changed' : ''} ${n.tags.includes('production-automation') ? 'prod' : ''}"><rect x="${x}" y="${y}" width="${W}" height="${H}" rx="4"/><text x="${x + 10}" y="${y + 21}">${esc(n.id.length > 42 ? n.id.slice(0, 40) + '…' : n.id)}</text><title>${esc(n.id)}</title></g>`).join('');
+  return `<svg width="${width}" height="${height}" role="img" aria-label="Blast radius graph">${edges.join('')}${nodes}</svg>`;
+}
+function short(v) { if (v === undefined) return '∅'; const s = JSON.stringify(v); return s.length > 60 ? s.slice(0, 57) + '…' : s; }
+loadRuns();
+</script>
+</body>
+</html>

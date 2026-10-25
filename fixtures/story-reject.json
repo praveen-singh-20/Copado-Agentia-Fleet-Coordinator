@@ -1,0 +1,17 @@
+{
+  "name": "Community self-service (policy violation example)",
+  "tasks": [
+    {
+      "id": "US-201",
+      "title": "Show Tax ID on the customer community account page",
+      "changes": [
+        {
+          "op": "set-node",
+          "id": "Profile:Customer_Community",
+          "node": "fieldPermissions:Account.Tax_Id__c",
+          "value": { "readable": true, "editable": false }
+        }
+      ]
+    }
+  ]
+}
